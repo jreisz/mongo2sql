@@ -1,6 +1,6 @@
 # Mongo2SQL
 
-MongoLensSQL is a lightweight MongoDB to SQL translator written in Typescript.
+Mongo2SQL is a lightweight MongoDB to SQL translator written in Typescript.
 
 ![Screenshot](./public/assets/img/demo.gif)
 
