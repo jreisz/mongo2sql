@@ -13,6 +13,8 @@ $ npm i @jreisz/mongo2sql
 ## Example usage
 
 ```sh
+import { MongoToSQLTranslator } from "@jreisz/mongo2sql";
+
 const exampleQuery1 = { name: 'john' };
 const exampleQuery2 = { _id: 23113 }, { name: 1, age: 1 };
 const exampleQuery3 = { age: { $gte: 21 } }, { name: 1, _id: 1 };
