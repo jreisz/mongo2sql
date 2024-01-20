@@ -4,7 +4,8 @@
   "description": "A Mongo to SQL Converter",
   "main": "index.ts",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "typescript": "tsc"
   },
   "author": "Juan Manuel Reisz",
   "license": "MIT",
