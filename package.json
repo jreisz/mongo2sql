@@ -1,6 +1,6 @@
 {
   "name": "@jiiir/mongo2sql",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Mongo to SQL Converter",
   "main": "index.ts",
   "scripts": {
