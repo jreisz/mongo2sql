@@ -125,14 +125,57 @@ export class MongoToSQLTranslator {
   }
 
   /**
-   * Translates a MongoDB query to a complete SQL SELECT statement.
-   * @param mongoQuery - The MongoDB query object.
-   * @returns A complete SQL SELECT statement.
+   * Parses a MongoDB query string and converts it into a TypeScript MongoQuery type.
+   *
+   * @param {string} query - The MongoDB query string to be parsed.
+   * @returns {MongoQuery} - The corresponding TypeScript MongoQuery type.
    */
-  public static translate(mongoQuery: MongoQuery): string {
-    const translatedQuery = MongoToSQLTranslator.translateQuery(mongoQuery);
-    return `SELECT * FROM user WHERE ${MongoToSQLTranslator.buildSQL(
-      translatedQuery
-    )};`;
+  private static parseMongoQuery(query: string): {
+    operators: MongoQuery;
+    projection?: MongoQuery;
+  } {
+    const arrayOfObjects = query
+      .substring(query.indexOf(".find(") + 6, query.length - 2)
+      .replace(/(\w+:)|(\w+ :)|(\$\w+:)|(\$\w+ :)/g, function (matchedStr) {
+        return '"' + matchedStr.substring(0, matchedStr.length - 1) + '":';
+      })
+      .replaceAll("'", '"')
+      .replace(", ", ",")
+      .split(",{");
+
+    if (arrayOfObjects.length > 1) {
+      arrayOfObjects[arrayOfObjects.length - 1] =
+        "{" + arrayOfObjects[arrayOfObjects.length - 1];
+    }
+
+    return {
+      operators: JSON.parse(arrayOfObjects[0]),
+      projection:
+        arrayOfObjects.length > 1 ? JSON.parse(arrayOfObjects[1]) : undefined,
+    };
+  }
+
+  /**
+   * Translates a MongoDB query to a complete SQL SELECT statement.
+   * @param {string} query - The MongoDB statement.
+   * @returns {string} A complete SQL SELECT statement.
+   */
+  public static translate(query: string): string {
+    //validation
+    if (query.indexOf(".find") === -1) {
+      throw new Error(
+        'Error: Only the ".find" method is supported. Please use the ".find" method for querying.'
+      );
+    }
+
+    //convert input string into proper types for better readability
+    const { operators, projection } =
+      MongoToSQLTranslator.parseMongoQuery(query);
+
+    const translatedQuery = MongoToSQLTranslator.translateQuery(operators);
+
+    return `SELECT ${
+      !projection ? "*" : Object.keys(projection).join(", ")
+    } FROM user WHERE ${MongoToSQLTranslator.buildSQL(translatedQuery)};`;
   }
 }
