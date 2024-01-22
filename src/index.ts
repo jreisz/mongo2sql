@@ -30,31 +30,50 @@ export class MongoToSQLTranslator {
     const result: SqlQuery[] = [];
 
     for (const key in query) {
-      if (typeof query[key] === "object") {
-        const filter = query[key];
+      if (key.startsWith("$")) {
+        const operator = key as Operator;
+        const value = query[key];
 
-        for (const filterKey in filter) {
-          if (filterKey.startsWith("$")) {
-            const operator = filterKey as Operator;
-            const value = filter[filterKey];
-
-            if (operator === "$or" || operator === "$and") {
-              const subqueries = value.map((subquery: MongoQuery) =>
-                MongoToSQLTranslator.translateQuery(subquery)
-              );
-              result.push({ field: "", operator, value: subqueries });
-            } else {
-              const field = key;
-              result.push({ field, operator, value });
-            }
-          }
+        if (operator === "$or" || operator === "$and") {
+          const subqueries = value.map((subquery: MongoQuery) =>
+            MongoToSQLTranslator.translateQuery(subquery)
+          );
+          result.push({ field: "", operator, value: subqueries });
+        } else {
+          throw new Error(`Unsupported logical operator: ${operator}`);
         }
       } else {
         const field = key;
-        const value = query[key];
+
+        let value = query[key];
+        let operator: "$eq" | "$ne" | "$gt" | "$gte" | "$lt" | "$lte" | "$in" =
+          "$eq";
+
+        if (isNaN(query[key])) {
+          if (query[key]["$gte"]) {
+            value = query[key]["$gte"];
+            operator = "$gte";
+          } else if (query[key]["$lt"]) {
+            value = query[key]["$lt"];
+            operator = "$lt";
+          } else if (query[key]["$lte"]) {
+            value = query[key]["$lte"];
+            operator = "$lte";
+          } else if (query[key]["$gt"]) {
+            value = query[key]["$gt"];
+            operator = "$gt";
+          } else if (query[key]["$ne"]) {
+            value = query[key]["$ne"];
+            operator = "$ne";
+          } else if (query[key]["$in"]) {
+            value = query[key]["$in"];
+            operator = "$in";
+          }
+        }
+
         result.push({
           field,
-          operator: "$eq",
+          operator,
           value,
         });
       }
@@ -77,7 +96,9 @@ export class MongoToSQLTranslator {
             (subquery: SqlQuery[]) =>
               `(${MongoToSQLTranslator.buildSQL(subquery)})`
           );
-          return `(${subqueries.join(` ${q.operator.toUpperCase()} `)})`;
+          return `(${subqueries.join(
+            ` ${q.operator.toUpperCase().substring(1)} `
+          )})`;
         } else {
           const operator = MongoToSQLTranslator.getSQLOperator(q.operator);
           return `${q.field} ${operator} ${MongoToSQLTranslator.formatSQLValue(
@@ -134,25 +155,49 @@ export class MongoToSQLTranslator {
     operators: MongoQuery;
     projection?: MongoQuery;
   } {
-    const arrayOfObjects = query
-      .substring(query.indexOf(".find(") + 6, query.length - 2)
-      .replace(/(\w+:)|(\w+ :)|(\$\w+:)|(\$\w+ :)/g, function (matchedStr) {
-        return '"' + matchedStr.substring(0, matchedStr.length - 1) + '":';
-      })
-      .replaceAll("'", '"')
-      .replace(", ", ",")
-      .split(",{");
+    try {
+      const startIdx = query.indexOf(".find(");
+      const endIdx = query.lastIndexOf("})") + 1;
 
-    if (arrayOfObjects.length > 1) {
-      arrayOfObjects[arrayOfObjects.length - 1] =
-        "{" + arrayOfObjects[arrayOfObjects.length - 1];
+      if (startIdx === -1 || endIdx === -1) {
+        throw new Error("Invalid MongoDB query format");
+      }
+
+      const queryStr = query.substring(startIdx + 6, endIdx);
+
+      // Split the query into operators and projection parts
+      let [operatorsStr, projectionStr] = queryStr.split(/(?<=\}},)\s*(?={)/);
+      if (projectionStr) {
+        operatorsStr = operatorsStr.substring(0, operatorsStr.length - 1);
+      }
+
+      const operators = JSON.parse(
+        operatorsStr
+          .replace(/(\w+:)|(\w+ :)|(\$\w+:)|(\$\w+ :)/g, function (matchedStr) {
+            return '"' + matchedStr.substring(0, matchedStr.length - 1) + '":';
+          })
+          .replaceAll("'", '"')
+      );
+
+      // Parse projection if it exists
+      const projection = projectionStr
+        ? JSON.parse(
+            projectionStr.replace(/(\w+:)|(\w+ :)/g, function (matchedStr) {
+              return (
+                '"' + matchedStr.substring(0, matchedStr.length - 1) + '":'
+              );
+            })
+          )
+        : undefined;
+
+      return {
+        operators,
+        projection,
+      };
+    } catch (error) {
+      console.error("Error parsing MongoDB query:", error);
+      throw new Error("Invalid MongoDB query format");
     }
-
-    return {
-      operators: JSON.parse(arrayOfObjects[0]),
-      projection:
-        arrayOfObjects.length > 1 ? JSON.parse(arrayOfObjects[1]) : undefined,
-    };
   }
 
   /**
