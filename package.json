@@ -30,5 +30,9 @@
   "bugs": {
     "url": "https://github.com/jreisz/mongo2sql/issues"
   },
-  "homepage": "https://github.com/jreisz/mongo2sql#readme"
+  "homepage": "https://github.com/jreisz/mongo2sql#readme",
+  "types": "./index.d.ts",
+  "directories": {
+    "doc": "docs"
+  }
 }
