@@ -7,7 +7,8 @@ Mongo2SQL is a lightweight MongoDB to SQL translator written in Typescript.
 ## Installation
 
 ```sh
-$ npm i @jreisz/mongo2sql
+$ # npm i @jreisz/mongo2sql -- will be available soon
+$ npm i @jiiir/mongo2sql
 ```
 
 ## Example usage
